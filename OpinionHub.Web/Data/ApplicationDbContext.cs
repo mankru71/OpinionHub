@@ -42,6 +42,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<Vote>()
             .HasIndex(v => new { v.PollId, v.VoterAccountId })
+            .HasIndex(v => new { v.PollId, v.UserId })
             .IsUnique();
     }
 }

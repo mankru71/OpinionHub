@@ -69,6 +69,7 @@ public class PollService : IPollService
         // "один голос на аккаунт", а обновляем существующую запись и фиксируем это в аудит-логе.
         var existing = await _db.Votes.Include(v => v.Selections)
             .FirstOrDefaultAsync(v => v.PollId == pollId && v.VoterAccountId == userId);
+            .FirstOrDefaultAsync(v => v.PollId == pollId && v.UserId == userId);
 
         if (existing is not null && !poll.CanChangeVote)
             throw new InvalidOperationException("Изменение голоса запрещено автором");
@@ -81,6 +82,7 @@ public class PollService : IPollService
                 VoterAccountId = userId,
                 UserId = poll.VisibilityType == VisibilityType.Anonymous ? null : userId
             };
+            existing = new Vote { PollId = pollId, UserId = poll.VisibilityType == VisibilityType.Anonymous ? null : userId };
             _db.Votes.Add(existing);
         }
         else
