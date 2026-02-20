@@ -80,4 +80,84 @@ public class PollServiceTests
         Assert.Equal("user-1", storedVote.VoterAccountId);
         Assert.Null(storedVote.UserId);
     }
+
+    [Fact]
+    public async Task LegacyVoteByUserIdBlocksSecondVoteWhenChangeDisabled()
+    {
+        using var db = BuildDb();
+
+        var poll = new Poll
+        {
+            Title = "Legacy",
+            AuthorId = "author",
+            Status = PollStatus.Active,
+            PollType = PollType.SingleChoice,
+            VisibilityType = VisibilityType.Public,
+            CanChangeVote = false,
+            Options = new List<PollOption> { new() { Text = "A" }, new() { Text = "B" } }
+        };
+
+        var legacyVote = new Vote
+        {
+            PollId = poll.Id,
+            UserId = "legacy-user",
+            VoterAccountId = string.Empty,
+            Selections = new List<VoteSelection>()
+        };
+
+        db.Polls.Add(poll);
+        db.Votes.Add(legacyVote);
+        await db.SaveChangesAsync();
+
+        var svc = new PollService(db, NullLogger<PollService>.Instance);
+        var optionId = poll.Options.Last().Id;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.VoteAsync(poll.Id, "legacy-user", new[] { optionId }));
+
+        var storedVote = await db.Votes.SingleAsync();
+        Assert.Equal("legacy-user", storedVote.UserId);
+    }
+
+    [Fact]
+    public async Task LegacyVoteByUserIdGetsBackfilledWhenChangingVoteAllowed()
+    {
+        using var db = BuildDb();
+
+        var poll = new Poll
+        {
+            Title = "Legacy editable",
+            AuthorId = "author",
+            Status = PollStatus.Active,
+            PollType = PollType.SingleChoice,
+            VisibilityType = VisibilityType.Public,
+            CanChangeVote = true,
+            Options = new List<PollOption> { new() { Text = "A" }, new() { Text = "B" } }
+        };
+
+        var firstOptionId = poll.Options.First().Id;
+        var secondOptionId = poll.Options.Last().Id;
+        var legacyVote = new Vote
+        {
+            PollId = poll.Id,
+            UserId = "legacy-user",
+            VoterAccountId = string.Empty,
+            Selections = new List<VoteSelection>
+            {
+                new() { PollOptionId = firstOptionId }
+            }
+        };
+
+        db.Polls.Add(poll);
+        db.Votes.Add(legacyVote);
+        await db.SaveChangesAsync();
+
+        var svc = new PollService(db, NullLogger<PollService>.Instance);
+        await svc.VoteAsync(poll.Id, "legacy-user", new[] { secondOptionId });
+
+        var storedVote = await db.Votes.Include(v => v.Selections).SingleAsync();
+        Assert.Equal("legacy-user", storedVote.VoterAccountId);
+        Assert.Single(storedVote.Selections);
+        Assert.Equal(secondOptionId, storedVote.Selections.Single().PollOptionId);
+    }
 }
