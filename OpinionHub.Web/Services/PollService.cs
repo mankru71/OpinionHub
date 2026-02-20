@@ -68,6 +68,7 @@ public class PollService : IPollService
         // Важный участок: мы не создаем новый голос при пере-голосовании, чтобы сохранить гарантию
         // "один голос на аккаунт", а обновляем существующую запись и фиксируем это в аудит-логе.
         var existing = await _db.Votes.Include(v => v.Selections)
+            .FirstOrDefaultAsync(v => v.PollId == pollId && v.VoterAccountId == userId);
             .FirstOrDefaultAsync(v => v.PollId == pollId && v.UserId == userId);
 
         if (existing is not null && !poll.CanChangeVote)
@@ -75,6 +76,12 @@ public class PollService : IPollService
 
         if (existing is null)
         {
+            existing = new Vote
+            {
+                PollId = pollId,
+                VoterAccountId = userId,
+                UserId = poll.VisibilityType == VisibilityType.Anonymous ? null : userId
+            };
             existing = new Vote { PollId = pollId, UserId = poll.VisibilityType == VisibilityType.Anonymous ? null : userId };
             _db.Votes.Add(existing);
         }
