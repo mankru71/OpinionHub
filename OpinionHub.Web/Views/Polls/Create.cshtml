@@ -1,0 +1,38 @@
+@model OpinionHub.Web.ViewModels.CreatePollViewModel
+@{
+    ViewData["Title"] = "Создание опроса";
+}
+
+<h2>Создание опроса</h2>
+<form method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="PollType" class="form-label">Тип голосования</label>
+        <select asp-for="PollType" asp-items="Html.GetEnumSelectList<PollType>()" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="VisibilityType" class="form-label">Видимость</label>
+        <select asp-for="VisibilityType" asp-items="Html.GetEnumSelectList<VisibilityType>()" class="form-select"></select>
+    </div>
+    <div class="form-check mb-3">
+        <input asp-for="CanChangeVote" class="form-check-input" />
+        <label asp-for="CanChangeVote" class="form-check-label">Разрешить менять голос</label>
+    </div>
+    <div class="mb-3">
+        <label asp-for="EndDateUtc" class="form-label">Дата окончания (UTC)</label>
+        <input asp-for="EndDateUtc" class="form-control" type="datetime-local" />
+    </div>
+
+    <h5>Варианты ответа</h5>
+    @for (var i = 0; i < Model.Options.Count; i++)
+    {
+        <input name="Options[@i]" class="form-control mb-2" value="@Model.Options[i]" />
+    }
+
+    <button type="submit" class="btn btn-outline-secondary" name="PublishNow" value="false">Сохранить как черновик</button>
+    <button type="submit" class="btn btn-primary" name="PublishNow" value="true">Опубликовать</button>
+</form>

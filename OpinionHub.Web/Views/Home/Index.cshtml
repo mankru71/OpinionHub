@@ -1,0 +1,18 @@
+@model IReadOnlyCollection<OpinionHub.Web.Models.Poll>
+@{
+    ViewData["Title"] = "Лента опросов";
+}
+
+<h2>Лента опросов</h2>
+<div class="list-group">
+    @foreach (var poll in Model)
+    {
+        <a class="list-group-item list-group-item-action" asp-controller="Polls" asp-action="Details" asp-route-id="@poll.Id">
+            <div class="d-flex justify-content-between">
+                <strong>@poll.Title</strong>
+                <span class="badge text-bg-@(poll.Status == PollStatus.Active ? "success" : "secondary")">@poll.Status</span>
+            </div>
+            <small>Тип: @poll.PollType | Видимость: @poll.VisibilityType</small>
+        </a>
+    }
+</div>
