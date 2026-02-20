@@ -37,7 +37,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasIndex(p => new { p.Status, p.EndDateUtc });
 
         builder.Entity<Vote>()
-            .HasIndex(v => new { v.PollId, v.UserId })
+            .Property(v => v.VoterAccountId)
+            .IsRequired();
+
+        builder.Entity<Vote>()
+            .HasIndex(v => new { v.PollId, v.VoterAccountId })
             .IsUnique();
     }
 }

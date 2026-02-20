@@ -53,4 +53,31 @@ public class PollServiceTests
         Assert.Equal(1, changed);
         Assert.Equal(PollStatus.Completed, db.Polls.Single().Status);
     }
+
+    [Fact]
+    public async Task AnonymousPollDisallowsSecondVoteWhenChangeDisabled()
+    {
+        using var db = BuildDb();
+        var svc = new PollService(db, NullLogger<PollService>.Instance);
+        var poll = await svc.CreateDraftAsync(new CreatePollViewModel
+        {
+            Title = "Anonymous",
+            PollType = PollType.SingleChoice,
+            VisibilityType = VisibilityType.Anonymous,
+            CanChangeVote = false,
+            Options = new List<string> { "A", "B" },
+            PublishNow = true
+        }, "author");
+
+        var firstOptionId = poll.Options.First().Id;
+        await svc.VoteAsync(poll.Id, "user-1", new[] { firstOptionId });
+
+        var secondOptionId = poll.Options.Last().Id;
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            svc.VoteAsync(poll.Id, "user-1", new[] { secondOptionId }));
+
+        var storedVote = await db.Votes.SingleAsync();
+        Assert.Equal("user-1", storedVote.VoterAccountId);
+        Assert.Null(storedVote.UserId);
+    }
 }
