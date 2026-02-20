@@ -68,7 +68,9 @@ public class PollService : IPollService
         // Важный участок: мы не создаем новый голос при пере-голосовании, чтобы сохранить гарантию
         // "один голос на аккаунт", а обновляем существующую запись и фиксируем это в аудит-логе.
         var existing = await _db.Votes.Include(v => v.Selections)
-            .FirstOrDefaultAsync(v => v.PollId == pollId && v.VoterAccountId == userId);
+            .FirstOrDefaultAsync(v => v.PollId == pollId &&
+                (v.VoterAccountId == userId ||
+                 (v.UserId == userId && string.IsNullOrEmpty(v.VoterAccountId))));
 
         if (existing is not null && !poll.CanChangeVote)
             throw new InvalidOperationException("Изменение голоса запрещено автором");
@@ -85,6 +87,9 @@ public class PollService : IPollService
         }
         else
         {
+            if (string.IsNullOrEmpty(existing.VoterAccountId))
+                existing.VoterAccountId = userId;
+
             _db.VoteSelections.RemoveRange(existing.Selections);
         }
 
