@@ -1,0 +1,63 @@
+@model OpinionHub.Web.Models.Poll
+@{
+    ViewData["Title"] = Model.Title;
+    var total = Model.Votes.Count;
+}
+
+<h2>@Model.Title</h2>
+<p>
+    Статус: <strong>@Model.Status</strong> | Тип: @Model.PollType | Видимость: @Model.VisibilityType
+</p>
+
+@if (TempData["VoteError"] is string voteError)
+{
+    <div class="alert alert-danger">@voteError</div>
+}
+
+@if (User.Identity?.IsAuthenticated == true && Model.Status == PollStatus.Active)
+{
+    <form asp-action="Vote" method="post">
+        <input type="hidden" name="id" value="@Model.Id" />
+        @for (var i = 0; i < Model.Options.Count; i++)
+        {
+            var option = Model.Options.ElementAt(i);
+            <div class="form-check">
+                <input class="form-check-input" type="@(Model.PollType == PollType.SingleChoice ? "radio" : "checkbox")" name="optionIds" value="@option.Id" id="opt-@option.Id" />
+                <label class="form-check-label" for="opt-@option.Id">@option.Text</label>
+            </div>
+        }
+        <button class="btn btn-primary mt-3">Проголосовать</button>
+    </form>
+}
+
+@if (User.Identity?.IsAuthenticated == true && Model.Status == PollStatus.Draft && User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value == Model.AuthorId)
+{
+    <form asp-action="Publish" method="post">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <button class="btn btn-success">Публиковать</button>
+    </form>
+}
+
+<h4 class="mt-4">Результаты</h4>
+<canvas id="chart"></canvas>
+<ul>
+    @foreach (var option in Model.Options)
+    {
+        var count = Model.Votes.Count(v => v.Selections.Any(s => s.PollOptionId == option.Id));
+        var pct = total == 0 ? 0 : count * 100.0 / total;
+        <li>@option.Text: @count голосов (@pct.ToString("F1")%)</li>
+    }
+</ul>
+
+@if (User.Identity?.IsAuthenticated == true && User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value == Model.AuthorId)
+{
+    <a class="btn btn-outline-primary" asp-action="ExportCsv" asp-route-id="@Model.Id">CSV</a>
+    <a class="btn btn-outline-primary" asp-action="ExportXlsx" asp-route-id="@Model.Id">XLSX</a>
+}
+
+@section Scripts {
+    <script src="~/js/poll-details.js"></script>
+    <script>
+        initPollDetails('@Model.Id', [@Html.Raw(string.Join(',', Model.Options.Select(o => $"'{o.Text.Replace("'", "\\'")}'")))], [@string.Join(',', Model.Options.Select(o => Model.Votes.Count(v => v.Selections.Any(s => s.PollOptionId == o.Id))))]);
+    </script>
+}
